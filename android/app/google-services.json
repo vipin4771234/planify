@@ -1,0 +1,82 @@
+{
+  "project_info": {
+    "project_number": "96918783298",
+    "project_id": "planify-app-e6a0d",
+    "storage_bucket": "planify-app-e6a0d.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:96918783298:android:6cf77e06f1d1889be5b4db",
+        "android_client_info": {
+          "package_name": "capital.rezia.planify"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "96918783298-o6rshn1ukaagqnqmqsl6bb7lhk8k1aee.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAMhd1rngLvtMUxrC0p3aHmwrXiLQRjwlc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "96918783298-o6rshn1ukaagqnqmqsl6bb7lhk8k1aee.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "96918783298-8gjaom1acpr1e861r33up2486boptdh9.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.erizzarate.planify"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:96918783298:android:28cb3a3ccb74ad90e5b4db",
+        "android_client_info": {
+          "package_name": "com.erizzarate.planify"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "96918783298-o6rshn1ukaagqnqmqsl6bb7lhk8k1aee.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAMhd1rngLvtMUxrC0p3aHmwrXiLQRjwlc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "96918783298-o6rshn1ukaagqnqmqsl6bb7lhk8k1aee.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "96918783298-8gjaom1acpr1e861r33up2486boptdh9.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.erizzarate.planify"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

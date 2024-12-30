@@ -1,0 +1,1864 @@
+// Created by Tayyab Mughal on 25/02/2023.
+// Tayyab Mughal
+// tayyabmughal676@gmail.com
+// © 2022-2023  - All Rights Reserved
+
+// import 'package:add_2_calendar/add_2_calendar.dart';
+import 'dart:io';
+import 'dart:math';
+import 'package:collection/collection.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_linkify/flutter_linkify.dart';
+import 'package:flutter_svg/svg.dart';
+import 'package:planify/app_data_models/trips/GetTripInfoResponse.dart';
+import 'package:planify/app_resources/app_resources.dart';
+import 'package:planify/local_app_database/local_app_database.dart';
+import 'package:planify/project_widgets/get_start_full_black_button_with_loader.dart';
+import 'package:planify/project_widgets/project_widgets.dart';
+import 'package:planify/screens/main_home_screens/main_home_screen.dart';
+import 'package:planify/screens/trip_creation_screens/customize_export.dart';
+import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:simple_gradient_text/simple_gradient_text.dart';
+import 'package:video_player/video_player.dart';
+import 'my_trip_generated_provider.dart';
+import 'package:logger/logger.dart';
+import 'package:device_calendar/device_calendar.dart';
+import 'package:flutter_native_timezone/flutter_native_timezone.dart';
+import 'package:timezone/timezone.dart';
+import 'package:permission_handler/permission_handler.dart';
+
+class MyTripGeneratedItineraryScreen extends StatefulWidget {
+  final String tripId;
+  final String tripVideoTitle;
+  final String videoLink;
+
+  const MyTripGeneratedItineraryScreen({
+    Key? key,
+    required this.tripId,
+    required this.videoLink,
+    required this.tripVideoTitle,
+  }) : super(key: key);
+
+  @override
+  State<MyTripGeneratedItineraryScreen> createState() =>
+      _MyTripGeneratedItineraryScreenState();
+}
+
+class _MyTripGeneratedItineraryScreenState
+    extends State<MyTripGeneratedItineraryScreen> {
+  //
+  String username = LocalAppDatabase.getString(Strings.loginFirstName) ?? "Jon";
+  late MyTripGeneratedProvider myTripGeneratedProvider;
+  static final Logger _logger = Logger();
+  bool isLoadingState = false;
+  late List<Calendar> _calendars;
+  late Calendar? _selectedCalendar;
+  late DeviceCalendarPlugin _deviceCalendarPlugin;
+  Event? _event;
+  bool isRegeneratingState = false;
+
+  //
+  bool isAddToCalendar = false;
+  int currentIndex = -1;
+
+  // bool isUserRegeneratingIteration = false;
+
+  final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
+      GlobalKey<ScaffoldMessengerState>();
+
+  late VideoPlayerController _controllerVideoPlayer;
+
+  //
+  Duration getDuration = const Duration(hours: 0, minutes: 0);
+  Duration deceaseVideoTimer = const Duration(minutes: 0, seconds: 0);
+  bool hiddenVideoControllers = false;
+
+  var selectCurrency =
+      LocalAppDatabase.getString(Strings.userCurrency)?.toUpperCase() ?? "USD";
+
+  var appleAppShorterLink = "https://apple.co/3CklEaK";
+  var googleAppShorterLink = "https://bit.ly/3qwGlh4";
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    _deviceCalendarPlugin = DeviceCalendarPlugin();
+    myTripGeneratedProvider = MyTripGeneratedProvider();
+    myTripGeneratedProvider =
+        Provider.of<MyTripGeneratedProvider>(context, listen: false);
+    myTripGeneratedProvider.init(context: context);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      myTripGeneratedProvider.getTripInfoById(tripId: widget.tripId);
+    });
+
+    //videoLinkTwo
+    // _controllerVideoPlayer = VideoPlayerController.network(widget.videoLink)
+    //   ..initialize().then((_) {
+    //     // Ensure the first frame is shown after the video is initialized, even before the play button has been pressed.
+    //     setState(() {});
+    //     // TODO:
+    //     // _controllerVideoPlayer.play();
+    //   });
+    _retrieveCalendars(widget.tripId);
+    // Video Position
+    // _controllerVideoPlayer.addListener(_videoPosition);
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    // TODO: implement dispose
+    super.dispose();
+    // _controllerVideoPlayer.dispose();
+    // _controllerVideoPlayer.removeListener(_videoPosition);
+  }
+
+  /// Build Event
+  // Event buildEvent({
+  //   Recurrence? recurrence,
+  //   required String title,
+  //   required String description,
+  //   required String location,
+  //   required String startDate,
+  //   required String endDate,
+  //   required List<String>? emailInvites,
+  //   Duration? reminder,
+  //   String? url,
+  // }) {
+  //   // Parse the given date string
+  //   // final inputStartFormat = DateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+  //   // final inputStartDate = inputStartFormat.parse(startDate);
+  //   //
+  //   // // Format the date as required
+  //   // final outputStartFormat = DateFormat("E',' d MMMM h:mm a");
+  //   // final formattedStartDate = outputStartFormat.format(inputStartDate);
+  //   //
+  //   // // Convert the formatted date back to DateTime
+  //   // final convertedStartDate = outputStartFormat.parse(formattedStartDate);
+  //   //
+  //   // // Parse the given date string
+  //   // final inputEndFormat = DateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+  //   // final inputEndDate = inputStartFormat.parse(endDate);
+  //   //
+  //   // // Format the date as required
+  //   // final outputEndFormat = DateFormat("E',' d MMMM h:mm a");
+  //   // final formattedEndDate = outputEndFormat.format(inputEndDate);
+  //   //
+  //   // // Convert the formatted date back to DateTime
+  //   // final convertedEndDate = outputEndFormat.parse(formattedEndDate);
+
+  //   debugPrint("startDate:$startDate");
+  //   debugPrint("endDate:$endDate");
+
+  //   return Event(
+  //     title: title,
+  //     description: description,
+  //     location: location,
+  //     startDate: DateTime.parse(startDate),
+  //     //convertedStartDate,
+  //     endDate: DateTime.parse(startDate).add(Duration(minutes: 30)),
+  //     //convertedEndDate,
+  //     allDay: false,
+  //     iosParams: IOSParams(
+  //       reminder: reminder,
+  //       url: url,
+  //     ),
+  //     androidParams: AndroidParams(
+  //       emailInvites: emailInvites,
+  //     ),
+  //     recurrence: recurrence,
+  //   );
+  // }
+
+  // void _videoPosition() async {
+  //   if (_controllerVideoPlayer.value.isInitialized) {
+  //     setState(() {
+  //       getDuration = _controllerVideoPlayer.value.position;
+  //       deceaseVideoTimer = _controllerVideoPlayer.value.duration -
+  //           _controllerVideoPlayer.value.position;
+  //     });
+  //     if (_controllerVideoPlayer.value.position ==
+  //         _controllerVideoPlayer.value.duration) {
+  //       _controllerVideoPlayer.removeListener(_videoPosition);
+  //       setState(() {
+  //         // showAlertDialog(context: context);
+  //       });
+  //     }
+  //   }
+  // }
+
+  @override
+  Widget build(BuildContext context) {
+    Provider.of<MyTripGeneratedProvider>(context, listen: true);
+    return Scaffold(
+      appBar: myTripGeneratedProvider.isTripDetailLoading == 2
+          ? AppBar(
+              elevation: 0,
+              backgroundColor: AppColors.accent02,
+              foregroundColor: AppColors.mainBlack100,
+              automaticallyImplyLeading: false,
+              centerTitle: false,
+              title: Padding(
+                padding: EdgeInsets.only(
+                  top: sizes!.heightRatio * 10,
+                  bottom: sizes!.heightRatio * 6,
+                ),
+                child: GestureDetector(
+                  onTap: () => Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const MainHomeScreen(),
+                      ),
+                      (route) => false),
+                  child: Container(
+                    height: sizes!.heightRatio * 32,
+                    width: sizes!.widthRatio * 108,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: AppColors.mainWhite100,
+                        width: 2,
+                      ),
+                    ),
+                    child: const Center(
+                      child: GetGenericText(
+                        text: "Return to home",
+                        fontFamily: Assets.aileron,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.mainWhite100,
+                        lines: 1,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            )
+          : null,
+      floatingActionButtonLocation:
+          myTripGeneratedProvider.isTripDetailLoading == 2
+              ? FloatingActionButtonLocation.centerDocked
+              : null,
+      floatingActionButton: myTripGeneratedProvider.isTripDetailLoading == 2
+          ? GetStartFullBlackButtonWithLoader(
+              title: "Share with friends",
+              isLoadingState: myTripGeneratedProvider.isVideoSaving,
+              onPress: () {
+                Share.share(
+                  "${username.toUpperCase()} has sent you a GIFT DREAM TRIP. Use this code: ${myTripGeneratedProvider.getTripInfoResponse.data?.shareCode} inside the app to redeem it. \n\n iOS App Link: \n $appleAppShorterLink \n\n Android App Link: \n $googleAppShorterLink",
+                ).then(
+                  (value) => {},
+                );
+              },
+            ).get16HorizontalPadding().get16VerticalPadding()
+          : null,
+      body: Container(
+        color: AppColors.accent02,
+        height: myTripGeneratedProvider.isTripDetailLoading == 2
+            ? null
+            : sizes!.height,
+        width: myTripGeneratedProvider.isTripDetailLoading == 2
+            ? null
+            : sizes!.width,
+        child: SingleChildScrollView(
+          physics: const ScrollPhysics(),
+          child: SafeArea(
+            child: myTripGeneratedProvider.isTripDetailLoading == 2
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      CommonPadding.sizeBoxWithHeight(height: 10),
+
+                      Container(
+                        height: sizes!.heightRatio * 180,
+                        width: sizes!.widthRatio * 342,
+                        decoration: BoxDecoration(
+                          color: AppColors.mainBlack100,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: Colors.black,
+                              width: 4.0,
+                            ),
+                            borderRadius: BorderRadius.circular(10.0),
+                          ),
+                          child: SvgPicture.asset(
+                            "assets/svg/planify_logo.svg",
+                            height: sizes!.heightRatio * 180,
+                            width: sizes!.widthRatio * 342,
+                          ),
+                        ),
+
+                        /// Video Player
+                        // _controllerVideoPlayer.value.isInitialized
+                        //     ? SizedBox(
+                        //         // height: sizes!.heightRatio * 300,
+                        //         // width: sizes!.widthRatio * 342,
+                        //         child: Stack(
+                        //           alignment: Alignment.center,
+                        //           children: [
+                        //             ///Video Player
+                        //             ClipRRect(
+                        //               borderRadius:
+                        //                   BorderRadius.circular(10),
+                        //               child: GestureDetector(
+                        //                 onTap: () {
+                        //                   setState(() {
+                        //                     _controllerVideoPlayer
+                        //                             .value.isPlaying
+                        //                         ? _controllerVideoPlayer
+                        //                             .pause()
+                        //                         : _controllerVideoPlayer
+                        //                             .play();
+                        //                   });
+                        //                 },
+                        //                 child: AspectRatio(
+                        //                   aspectRatio:
+                        //                       _controllerVideoPlayer
+                        //                           .value.aspectRatio,
+                        //                   child: VideoPlayer(
+                        //                     _controllerVideoPlayer,
+                        //                   ),
+                        //                 ),
+                        //               ),
+                        //             ),
+
+                        //             /// If isBuffering show CircularProgressIndicator
+                        //             Visibility(
+                        //               visible: _controllerVideoPlayer
+                        //                   .value.isBuffering,
+                        //               child: const Center(
+                        //                 child: CircularProgressIndicator(
+                        //                   color: AppColors.redTwoColor,
+                        //                 ),
+                        //               ),
+                        //             ),
+
+                        //             /// Video Player Buttons
+                        //             Visibility(
+                        //               visible: !_controllerVideoPlayer
+                        //                   .value.isPlaying,
+                        //               child: _controllerVideoPlayer
+                        //                       .value.isPlaying
+                        //                   ? GestureDetector(
+                        //                       onTap: () {
+                        //                         setState(() {
+                        //                           _controllerVideoPlayer
+                        //                                   .value.isPlaying
+                        //                               ? _controllerVideoPlayer
+                        //                                   .pause()
+                        //                               : _controllerVideoPlayer
+                        //                                   .play();
+                        //                         });
+                        //                       },
+                        //                       child: SvgPicture.asset(
+                        //                         "assets/svg/pause_icon.svg",
+                        //                       ),
+                        //                     )
+                        //                   : GestureDetector(
+                        //                       onTap: () {
+                        //                         setState(() {
+                        //                           _controllerVideoPlayer
+                        //                                   .value.isPlaying
+                        //                               ? _controllerVideoPlayer
+                        //                                   .pause()
+                        //                               : _controllerVideoPlayer
+                        //                                   .play();
+                        //                         });
+                        //                       },
+                        //                       child: SvgPicture.asset(
+                        //                         'assets/svg/play_icon.svg',
+                        //                       ),
+                        //                     ),
+                        //             ),
+                        //           ],
+                        //         ),
+                        //       )
+                        //     : const Center(
+                        //         child: CircularProgressIndicator(
+                        //           color: AppColors.redTwoColor,
+                        //         ),
+                        //       ),
+                      ),
+                      CommonPadding.sizeBoxWithHeight(height: 16),
+                      // Location And Share Heading
+                      _locationAndShareHeading(
+                        location: myTripGeneratedProvider
+                                .getTripInfoResponse.data?.destination ??
+                            "",
+                      ),
+                      CommonPadding.sizeBoxWithHeight(height: 12),
+                      // Trip User Container
+                      _tripUserContainer(
+                        userName:
+                            "${myTripGeneratedProvider.getTripInfoResponse.data?.owner?.firstName ?? ""} ${myTripGeneratedProvider.getTripInfoResponse.data?.owner?.lastName ?? ""}",
+                      ),
+                      CommonPadding.sizeBoxWithHeight(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          /// Rate this Trip
+                          _rateThisTripButton(
+                            onPress: () {
+                              //TODO: Uncomment this
+                              var tripId = myTripGeneratedProvider
+                                  .getTripInfoResponse.data!.id!;
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => TripFeedbackScreen(
+                                    tripId: tripId,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+
+                          /// Add To Calender Button
+                          _addToCalenderButton(
+                            onPress: () async {
+                              //TODO: Working
+                              SharedPreferences sharedPred =
+                                  await SharedPreferences.getInstance();
+                              try {
+                                var permissionsGranted =
+                                    await _deviceCalendarPlugin
+                                        .hasPermissions();
+                                _logger.e(
+                                    "permissionGrantedd $permissionsGranted");
+                                _logger.e(
+                                    "permissionGrantedd ${permissionsGranted.isSuccess}");
+                                _logger.e(
+                                    "permissionGrantedd ${permissionsGranted.data}");
+                                if (Platform.isIOS &&
+                                    !permissionsGranted.data!) {
+                                  var perm = await Permission
+                                      .calendarFullAccess.isGranted;
+                                  _logger.e("permmmmmmmm $perm");
+                                  if (!perm) {
+                                    var permiss = await Permission
+                                        .calendarFullAccess
+                                        .request();
+                                    _logger.e("permiss $permiss");
+                                    if (permiss ==
+                                        PermissionStatus.permanentlyDenied) {
+                                      _showGoToSettingsAlert(context: context);
+                                      return;
+                                      openAppSettings();
+                                    }
+                                  }
+                                } else if (permissionsGranted.isSuccess &&
+                                    (permissionsGranted.data == null ||
+                                        permissionsGranted.data == false)) {
+                                  permissionsGranted =
+                                      await _deviceCalendarPlugin
+                                          .requestPermissions();
+                                  if (!permissionsGranted.isSuccess ||
+                                      permissionsGranted.data == null ||
+                                      permissionsGranted.data == false) {
+                                    Toasts.getSuccessToast(
+                                      text: "Permission not allowed",
+                                    );
+                                    // return;
+                                  }
+                                }
+                                if (isAddToCalendar) {
+                                  Toasts.getSuccessToast(
+                                    text: "Already added to calendar",
+                                  );
+                                  return;
+                                }
+
+                                debugPrint("----asdsdsadasdas---->,");
+                                _logger.i(myTripGeneratedProvider
+                                    .getTripInfoResponse
+                                    .data!
+                                    .tripItinerary![0]
+                                    .activities![0]
+                                    .title);
+                                var inc = 0;
+
+                                var timezone = await FlutterNativeTimezone
+                                    .getLocalTimezone();
+                                var location = getLocation(timezone);
+                                _logger.e(
+                                    "timetimetime ${myTripGeneratedProvider.getTripInfoResponse.data!.fromDate!} ${myTripGeneratedProvider.getTripInfoResponse.data!.toDate!}");
+                                _logger.e(
+                                    '----_selectedCalendar, ${_selectedCalendar?.id}');
+
+                                var errorInAdd = sharedPred.getBool(
+                                    "error-${myTripGeneratedProvider.getTripInfoResponse.data!.id}");
+                                _logger.e("erroerinadd $errorInAdd");
+
+                                myTripGeneratedProvider
+                                    .getTripInfoResponse.data!.tripItinerary
+                                    ?.forEach((trip) {
+                                  trip.activities?.forEach((activity) async {
+                                    final eventToCreate =
+                                        Event(_selectedCalendar?.id);
+                                    var startTime = myTripGeneratedProvider
+                                        .getTripInfoResponse.data!.fromDate;
+                                    var endTime = myTripGeneratedProvider
+                                        .getTripInfoResponse.data!.toDate;
+
+                                    if (activity.period == "Morning") {
+                                      // var timezone =
+                                      //     DateTime.parse(startTime!).timeZoneName;
+                                      // setState(() {
+                                      eventToCreate.start = TZDateTime(
+                                          location,
+                                          DateTime.parse(startTime!).year,
+                                          DateTime.parse(startTime).month,
+                                          (DateTime.parse(startTime).day +
+                                                  int.parse(trip.day!) -
+                                                  1)
+                                              .toInt(),
+                                          DateTime.parse(startTime).hour + 6,
+                                          DateTime.parse(startTime).minute);
+
+                                      eventToCreate.end = TZDateTime(
+                                          location,
+                                          DateTime.parse(startTime).year,
+                                          DateTime.parse(startTime).month,
+                                          (DateTime.parse(startTime).day +
+                                                  int.parse(trip.day!) -
+                                                  1)
+                                              .toInt(),
+                                          DateTime.parse(startTime).hour +
+                                              6 +
+                                              1,
+                                          DateTime.parse(startTime).minute);
+                                      eventToCreate.description =
+                                          activity.title;
+                                      eventToCreate.calendarId =
+                                          _selectedCalendar?.id;
+                                      eventToCreate.title = activity.title;
+                                      // });
+
+                                      // _event?.start = TZDateTime.parse(, startTime);
+                                    } else if (activity.period == "Afternoon") {
+                                      eventToCreate.start = TZDateTime(
+                                          location,
+                                          DateTime.parse(startTime!).year,
+                                          DateTime.parse(startTime).month,
+                                          (DateTime.parse(startTime).day +
+                                                  int.parse(trip.day!) -
+                                                  1)
+                                              .toInt(),
+                                          DateTime.parse(startTime).hour + 12,
+                                          DateTime.parse(startTime).minute);
+
+                                      eventToCreate.end = TZDateTime(
+                                          location,
+                                          DateTime.parse(startTime).year,
+                                          DateTime.parse(startTime).month,
+                                          (DateTime.parse(startTime).day +
+                                                  int.parse(trip.day!) -
+                                                  1)
+                                              .toInt(),
+                                          DateTime.parse(startTime).hour +
+                                              12 +
+                                              1,
+                                          DateTime.parse(startTime).minute);
+                                      eventToCreate.description =
+                                          activity.title;
+                                      eventToCreate.calendarId =
+                                          _selectedCalendar?.id;
+                                      eventToCreate.title = activity.title;
+                                    } else if (activity.period == "Evening") {
+                                      eventToCreate.start = TZDateTime(
+                                          location,
+                                          DateTime.parse(startTime!).year,
+                                          DateTime.parse(startTime).month,
+                                          (DateTime.parse(startTime).day +
+                                                  int.parse(trip.day!) -
+                                                  1)
+                                              .toInt(),
+                                          DateTime.parse(startTime).hour + 15,
+                                          DateTime.parse(startTime).minute);
+
+                                      eventToCreate.end = TZDateTime(
+                                          location,
+                                          DateTime.parse(startTime).year,
+                                          DateTime.parse(startTime).month,
+                                          (DateTime.parse(startTime).day +
+                                                  int.parse(trip.day!) -
+                                                  1)
+                                              .toInt(),
+                                          DateTime.parse(startTime).hour +
+                                              15 +
+                                              1,
+                                          DateTime.parse(startTime).minute);
+                                      eventToCreate.description =
+                                          activity.title;
+                                      eventToCreate.calendarId =
+                                          _selectedCalendar?.id;
+                                      eventToCreate.title = activity.title;
+                                    } else {}
+
+                                    var createEventResult =
+                                        await _deviceCalendarPlugin
+                                            .createOrUpdateEvent(eventToCreate);
+                                    _logger.e(
+                                        "createEventResult ${inc++} ${createEventResult?.data}");
+                                  });
+                                });
+                                setState(() {
+                                  isAddToCalendar = true;
+                                });
+                                //Toasts
+                                Toasts.getSuccessToast(
+                                  text:
+                                      "Trip ${isAddToCalendar ? "added" : "removed"} ${isAddToCalendar ? "to" : "from"} your calender",
+                                );
+                                await sharedPred.setBool(
+                                    "${myTripGeneratedProvider.getTripInfoResponse.data!.id}",
+                                    true);
+                              } catch (e) {
+                                Toasts.getErrorToast(
+                                  text: "Trip not added to you calendar",
+                                );
+                                await sharedPred.setBool(
+                                    "error-${myTripGeneratedProvider.getTripInfoResponse.data!.id}",
+                                    true);
+                                await sharedPred.setBool(
+                                    "${myTripGeneratedProvider.getTripInfoResponse.data!.id}",
+                                    false);
+                                _logger.e("erroreroror $e");
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+
+                      CommonPadding.sizeBoxWithHeight(height: 12),
+                      const Divider(
+                        color: AppColors.gray5Color,
+                        thickness: 1,
+                      ),
+                      CommonPadding.sizeBoxWithHeight(height: 12),
+                      const GetGenericText(
+                        text: "Trip Information",
+                        fontFamily: Assets.basement,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.mainWhite100,
+                        lines: 1,
+                      ).getAlign(),
+                      CommonPadding.sizeBoxWithHeight(height: 24),
+                      _getTripInfoRow(
+                        title: "Trip Type",
+                        subTitle: "Customized",
+                      ),
+                      //Customized
+                      CommonPadding.sizeBoxWithHeight(height: 8),
+                      _getTripInfoRow(
+                        title: "Company of",
+                        subTitle: myTripGeneratedProvider
+                                .getTripInfoResponse.data?.companyOf ??
+                            "",
+                      ),
+                      //Family
+                      CommonPadding.sizeBoxWithHeight(height: 8),
+                      _getTripInfoRow(
+                        title: "Commute Type",
+                        subTitle: myTripGeneratedProvider
+                                .getTripInfoResponse.data?.commuteType ??
+                            "",
+                      ),
+                      //Public
+                      // CommonPadding.sizeBoxWithHeight(height: 8),
+                      // _getTripInfoRow(title: "Amenities", subTitle: "Pools"),
+                      // CommonPadding.sizeBoxWithHeight(height: 8),
+                      // _getTripInfoRow(title: "Stay", subTitle: "Apartment"),
+                      CommonPadding.sizeBoxWithHeight(height: 8),
+                      _getTripInfoRow(
+                          title: "Budget",
+                          subTitle:
+                              "$selectCurrency ${myTripGeneratedProvider.getTripInfoResponse.data?.budget ?? "0"}"),
+                      CommonPadding.sizeBoxWithHeight(height: 8),
+                      _getTripInfoRow(
+                        title: "Number of Members",
+                        subTitle: myTripGeneratedProvider
+                                .getTripInfoResponse.data?.numberOfMembers
+                                .toString() ??
+                            "0",
+                      ),
+                      CommonPadding.sizeBoxWithHeight(height: 8),
+                      _getTripInfoRow(
+                        title: "Number of days",
+                        subTitle: myTripGeneratedProvider
+                                .getTripInfoResponse.data?.numberOfDays
+                                .toString() ??
+                            "0",
+                      ),
+                      CommonPadding.sizeBoxWithHeight(height: 8),
+                      _getTripDateInfoRow(
+                        date: "Date",
+                        subTitle: myTripGeneratedProvider
+                            .getTripInfoResponse.data!.createdAt
+                            .toString(),
+                      ),
+                      CommonPadding.sizeBoxWithHeight(height: 16),
+                      const Divider(
+                        color: AppColors.gray5Color,
+                        thickness: 1,
+                      ),
+                      CommonPadding.sizeBoxWithHeight(height: 16),
+                      const GetGenericText(
+                        text: "Trip Itinerary",
+                        fontFamily: Assets.basement,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.mainWhite100,
+                        lines: 1,
+                      ).getAlign(),
+                      CommonPadding.sizeBoxWithHeight(height: 16),
+
+                      // Trip Itinerary ListView
+                      Flexible(
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: myTripGeneratedProvider
+                              .getTripInfoResponse.data!.tripItinerary!.length,
+                          itemBuilder: (context, index) {
+                            //Pass Trip Id
+                            var tripId = myTripGeneratedProvider
+                                .getTripInfoResponse.data!.id!;
+
+                            //data
+                            var data = myTripGeneratedProvider
+                                .getTripInfoResponse
+                                .data!
+                                .tripItinerary![index];
+                            var title = data.title.toString();
+                            var activity = data.activities!;
+                            var iterationId = data.id!;
+
+                            return Padding(
+                              padding: EdgeInsets.symmetric(
+                                vertical: sizes!.heightRatio * 10,
+                              ),
+                              child: _tripItineraryContainer(
+                                tripId: tripId,
+                                title: title,
+                                iterationId: iterationId,
+                                numberOfDays: "0${index + 1}",
+                                activities: activity,
+                                onPress: () {
+                                  setState(() {
+                                    currentIndex = index;
+                                  });
+                                },
+                                index: index,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      CommonPadding.sizeBoxWithHeight(height: 8),
+                      const Divider(
+                        color: AppColors.gray5Color,
+                        thickness: 1,
+                      ),
+                      CommonPadding.sizeBoxWithHeight(height: 8),
+                      // Carbon Container
+                      _carbonContainer(),
+                      CommonPadding.sizeBoxWithHeight(height: 80),
+                    ],
+                  ).get16HorizontalPadding()
+                : myTripGeneratedProvider.isTripDetailLoading == 1
+                    ? Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          GetGenericText(
+                            text:
+                                myTripGeneratedProvider.errorResponse.message ??
+                                    "",
+                            fontFamily: Assets.aileron,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.mainBlack100,
+                            lines: 2,
+                          ),
+                        ],
+                      )
+                    : SizedBox(
+                        height: sizes!.height / 2,
+                        child: const Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.mainWhite100,
+                          ),
+                        ),
+                      ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Location And Share Heading
+  Widget _locationAndShareHeading({
+    required String location,
+  }) =>
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SvgPicture.asset(
+            "assets/svg/location_icon.svg",
+            height: sizes!.heightRatio * 32,
+            width: sizes!.widthRatio * 32,
+            color: AppColors.mainWhite100,
+          ),
+          CommonPadding.sizeBoxWithWidth(width: 6),
+          Expanded(
+            child: GetGenericText(
+              text: location,
+              fontFamily: Assets.basement,
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: AppColors.mainWhite100,
+              lines: 2,
+            ),
+          ),
+        ],
+      );
+
+  /// Rate this trip
+  Widget _rateThisTripButton({
+    required Function onPress,
+  }) =>
+      GestureDetector(
+        onTap: () => onPress.call(),
+        child: Container(
+          height: sizes!.heightRatio * 32,
+          width: sizes!.widthRatio * 155,
+          decoration: BoxDecoration(
+            color: AppColors.mainPureWhite,
+            borderRadius: BorderRadius.circular(5),
+            border: Border.all(
+              color: AppColors.mainBlack100,
+              width: 2,
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: AppColors.mainBlack100,
+                spreadRadius: 0,
+                blurRadius: 0,
+                offset: Offset(-2, 2), // changes position of shadow
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SvgPicture.asset(
+                "assets/svg/rating_star_icon.svg",
+              ),
+              CommonPadding.sizeBoxWithWidth(width: 8),
+              const GetGenericText(
+                text: "Rate this trip",
+                fontFamily: Assets.aileron,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.mainBlack100,
+                lines: 1,
+              )
+            ],
+          ),
+        ),
+      );
+
+  /// Add To Calender
+  Widget _addToCalenderButton({
+    required Function onPress,
+  }) =>
+      GestureDetector(
+        onTap: () => onPress.call(),
+        child: Container(
+          height: sizes!.heightRatio * 32,
+          width: sizes!.widthRatio * 155,
+          decoration: BoxDecoration(
+            color: AppColors.mainPureWhite,
+            borderRadius: BorderRadius.circular(5),
+            border: Border.all(
+              color: isAddToCalendar == true
+                  ? AppColors.greenTwoColor
+                  : AppColors.mainBlack100,
+              width: 2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: isAddToCalendar == true
+                    ? AppColors.greenTwoColor
+                    : AppColors.mainBlack100,
+                spreadRadius: 0,
+                blurRadius: 0,
+                offset: const Offset(-2, 2), // changes position of shadow
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              isAddToCalendar == true
+                  ? SvgPicture.asset(
+                      "assets/svg/add_green_calendar_icon.svg",
+                    )
+                  : SvgPicture.asset(
+                      "assets/svg/add_calendar_icon.svg",
+                    ),
+              CommonPadding.sizeBoxWithWidth(width: 8),
+              GetGenericText(
+                text: isAddToCalendar ? "Added to Calendar" : "Add to Calendar",
+                fontFamily: Assets.aileron,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: isAddToCalendar == true
+                    ? AppColors.greenTwoColor
+                    : AppColors.mainBlack100,
+                lines: 1,
+              )
+            ],
+          ),
+        ),
+      );
+
+  /// Carbon Container
+  Widget _carbonContainer() => Container(
+        height: sizes!.heightRatio * 68,
+        width: sizes!.widthRatio * 360,
+        decoration: BoxDecoration(
+          color: AppColors.mainWhite,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: AppColors.greenColor,
+            width: 2,
+          ),
+        ),
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: sizes!.widthRatio * 8,
+            vertical: sizes!.heightRatio * 14,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SvgPicture.asset(
+                "assets/svg/greeny_heart_icon.svg",
+                height: sizes!.heightRatio * 18,
+                width: sizes!.widthRatio * 20,
+              ),
+              CommonPadding.sizeBoxWithWidth(width: 12),
+              const Expanded(
+                child: GetGenericText(
+                  text:
+                      "Planify is committed to the Global Program on Sustainability for negative carbon footprint by 2030",
+                  fontFamily: Assets.aileron,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                  color: AppColors.mainBlack100,
+                  lines: 2,
+                ),
+              )
+            ],
+          ),
+        ),
+      );
+
+  /// Trip Itinerary Container
+  Widget _tripItineraryContainer({
+    required String tripId,
+    required String title,
+    required String iterationId,
+    required String numberOfDays,
+    required List<Activities> activities,
+    required int index,
+    required Function onPress,
+  }) =>
+      GestureDetector(
+        onTap: () => onPress.call(),
+        child: currentIndex == index
+            ? Container(
+                //height: sizes!.heightRatio * 510,
+                width: sizes!.widthRatio * 362,
+                decoration: BoxDecoration(
+                  color: AppColors.mainWhite,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: AppColors.mainBlack,
+                      spreadRadius: 0,
+                      blurRadius: 0,
+                      offset: Offset(-4, 4), // changes position of shadow
+                    )
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.only(
+                        left: sizes!.widthRatio * 16,
+                        right: sizes!.widthRatio * 8,
+                        top: sizes!.heightRatio * 16,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          InkWell(
+                            onTap: () {
+                              debugPrint("iterationId: $iterationId");
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      ShowPreviousIterationScreen(
+                                    iterationId: iterationId,
+                                    tripId: tripId,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              color: Colors.transparent,
+                              child: Text(
+                                "Show previous iteration",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: sizes!.fontRatio * 12,
+                                  fontFamily: Assets.aileron,
+                                  color: AppColors.accent02,
+                                  //decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () async {
+                              // Toasts.getWarningToast(text: "Regenerate it");
+                              _showGenerateAlertBox(
+                                tripId: tripId,
+                                iterationId: iterationId,
+                                context: context,
+                              );
+                            },
+                            child: Container(
+                              color: Colors.transparent,
+                              child: SvgPicture.asset(
+                                "assets/svg/regenerate_icon.svg",
+                                height: sizes!.heightRatio * 24,
+                                width: sizes!.widthRatio * 24,
+                                color: AppColors.accent02,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    CommonPadding.sizeBoxWithHeight(height: 25),
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: sizes!.widthRatio * 16,
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              const GetGenericText(
+                                text: "Day",
+                                fontFamily: Assets.aileron,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
+                                color: AppColors.mainBlack100,
+                                lines: 1,
+                              ),
+                              CommonPadding.sizeBoxWithHeight(height: 4),
+                              GetGenericText(
+                                text: numberOfDays,
+                                fontFamily: Assets.basement,
+                                fontSize: 34,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.accent02,
+                                lines: 1,
+                              ),
+                            ],
+                          ),
+                          CommonPadding.sizeBoxWithWidth(width: 24),
+                          Flexible(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                for (var activity in activities)
+                                  Column(
+                                    children: [
+                                      GetGenericText(
+                                        text: "${activity.period}:",
+                                        fontFamily: Assets.aileron,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.mainBlack100,
+                                        lines: 6,
+                                        textAlign: TextAlign.start,
+                                      ).getAlign(),
+                                      CommonPadding.sizeBoxWithHeight(
+                                        height: 6,
+                                      ),
+                                      GetGenericText(
+                                        text:
+                                            "${activity.title} (estimated cost: ${activity.price} ${activity.currency!.toUpperCase()} per ${activity.per}, commuting time: ${activity.commutingTime})",
+                                        //"${activity.title} at price ${activity.price} ${activity.currency!.toUpperCase()}",
+                                        fontFamily: Assets.aileron,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.mainBlack100,
+                                        lines: 6,
+                                        textAlign: TextAlign.start,
+                                      ).getAlign(),
+                                      CommonPadding.sizeBoxWithHeight(
+                                        height: 6,
+                                      ),
+                                      Linkify(
+                                        onOpen: (link) async {
+                                          await myTripGeneratedProvider
+                                              .openServiceUrl(
+                                            serviceUrl: link.url,
+                                          );
+                                        },
+                                        text: activity.url.toString(),
+                                        maxLines: 10,
+                                        textAlign: TextAlign.start,
+                                        style: TextStyle(
+                                          fontSize: sizes!.fontRatio * 14,
+                                          fontFamily: Assets.aileron,
+                                          fontWeight: FontWeight.w400,
+                                          color: AppColors.mainBlack100,
+                                        ),
+                                        linkStyle: const TextStyle(
+                                          color: AppColors.accent02,
+                                        ),
+                                        options: const LinkifyOptions(
+                                          humanize: true,
+                                          removeWww: true,
+                                          looseUrl: true,
+                                        ),
+                                      ).getAlign(),
+                                      CommonPadding.sizeBoxWithHeight(
+                                        height: 10,
+                                      ),
+                                    ],
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : Container(
+                height: sizes!.heightRatio * 90,
+                width: sizes!.widthRatio * 362,
+                decoration: BoxDecoration(
+                  color: AppColors.mainWhite,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: AppColors.mainBlack,
+                      spreadRadius: 0,
+                      blurRadius: 0,
+                      offset: Offset(-4, 4), // changes position of shadow
+                    )
+                  ],
+                ),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: sizes!.widthRatio * 16,
+                    vertical: sizes!.heightRatio * 12,
+                  ),
+                  child: Stack(
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              const GetGenericText(
+                                text: "Day",
+                                fontFamily: Assets.aileron,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
+                                color: AppColors.mainBlack100,
+                                lines: 1,
+                              ),
+                              CommonPadding.sizeBoxWithHeight(height: 4),
+                              GetGenericText(
+                                text: numberOfDays,
+                                fontFamily: Assets.basement,
+                                fontSize: 34,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.accent02,
+                                lines: 1,
+                              ),
+                            ],
+                          ),
+                          CommonPadding.sizeBoxWithWidth(width: 25),
+                          Flexible(
+                            child: GetGenericText(
+                              text: title,
+                              fontFamily: Assets.aileron,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w400,
+                              color: AppColors.mainBlack100,
+                              lines: 4,
+                              textAlign: TextAlign.start,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+      );
+
+  /// Trip User Container
+  Widget _tripUserContainer({
+    required String userName,
+  }) =>
+      Row(
+        children: [
+          const CircleAvatar(
+            radius: 20,
+            foregroundImage: AssetImage("assets/png/user_avatar_two.png"),
+          ),
+          CommonPadding.sizeBoxWithWidth(width: 8),
+          GetGenericText(
+            text: userName,
+            fontFamily: Assets.aileron,
+            fontSize: 16,
+            fontWeight: FontWeight.w400,
+            color: AppColors.mainWhite100,
+            lines: 1,
+          ),
+        ],
+      );
+
+  // Get Trip Info Row
+  Widget _getTripInfoRow({
+    required String title,
+    required String subTitle,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        GetGenericText(
+          text: title,
+          fontFamily: Assets.aileron,
+          fontSize: 16,
+          fontWeight: FontWeight.w400,
+          color: AppColors.mainWhite100,
+          lines: 1,
+        ),
+        GetGenericText(
+          text: subTitle,
+          fontFamily: Assets.basement,
+          fontSize: 16,
+          fontWeight: FontWeight.w800,
+          color: AppColors.mainWhite100,
+          lines: 1,
+        ),
+      ],
+    );
+  }
+
+  // Get Trip Info Row
+  Widget _getTripDateInfoRow({
+    required String date,
+    required String subTitle,
+  }) {
+    var parse = DateTime.parse(subTitle);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        GetGenericText(
+          text: date,
+          fontFamily: Assets.aileron,
+          fontSize: 16,
+          fontWeight: FontWeight.w400,
+          color: AppColors.mainWhite100,
+          lines: 1,
+        ),
+        GetGenericText(
+          text: "${parse.day}/${parse.month}/${parse.year}",
+          fontFamily: Assets.basement,
+          fontSize: 16,
+          fontWeight: FontWeight.w800,
+          color: AppColors.mainWhite100,
+          lines: 1,
+        ),
+      ],
+    );
+  }
+
+  // Show Gift Sharing Box
+  Future<void> _shareWithFriendsAlertBox({
+    required BuildContext context,
+  }) async {
+    // show the dialog
+    showDialog(
+      barrierDismissible: false,
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setModelState) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    width: sizes!.width,
+                    height: sizes!.heightRatio * 325,
+                    margin: const EdgeInsets.all(16),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.mainWhite,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        vertical: sizes!.heightRatio * 12,
+                        horizontal: sizes!.widthRatio * 12,
+                      ),
+                      child: Column(
+                        children: [
+                          // Close Icon
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              GestureDetector(
+                                onTap: () => Navigator.pop(context),
+                                child: Container(
+                                  color: Colors.transparent,
+                                  child: SvgPicture.asset(
+                                    "assets/svg/close-pop.svg",
+                                    height: sizes!.heightRatio * 24,
+                                    width: sizes!.widthRatio * 24,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          CommonPadding.sizeBoxWithHeight(height: 20),
+
+                          const GetGenericText(
+                            text: "Your Trip is Successfully Generated.",
+                            fontFamily: Assets.basement,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.mainBlack100,
+                            lines: 3,
+                            textAlign: TextAlign.center,
+                          ).get16HorizontalPadding(),
+
+                          CommonPadding.sizeBoxWithHeight(height: 12),
+                          const GetGenericText(
+                            text: "Share it with your friends 😃",
+                            fontFamily: Assets.aileron,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w400,
+                            color: AppColors.mainBlack100,
+                            lines: 4,
+                            textAlign: TextAlign.center,
+                          ).get16HorizontalPadding(),
+
+                          CommonPadding.sizeBoxWithHeight(height: 30),
+
+                          // Gradient Get Start PopUp Button
+                          GradientGetStartPopUpButton(
+                            title: 'Share on Tiktok',
+                            icon: "assets/png/tiktok_icon.png",
+                            onPress: () async {
+                              //TODO: Working here
+                              await Share.share(
+                                "${username.toUpperCase()} has shared with you their dream trip. Please add this code ${myTripGeneratedProvider.getTripInfoResponse.data!.shareCode} on My Trips tab or click the link below. Link with the trip shared. \n\n iOS App Link: \n $appleAppShorterLink \n\n Android App Link: \n $googleAppShorterLink",
+                              ).then((value) {
+                                Navigator.pop(context);
+                              });
+                            },
+                          ),
+
+                          CommonPadding.sizeBoxWithHeight(height: 16),
+
+                          // Gradient Get Start PopUp Button
+                          GradientGetStartPopUpButton(
+                            title: 'Share on Instagram',
+                            icon: "assets/png/instagram_icon.png",
+                            onPress: () async {
+                              //TODO: Working here
+                              await Share.share(
+                                "${username.toUpperCase()} has shared with you their dream trip. Please add this code ${myTripGeneratedProvider.getTripInfoResponse.data!.shareCode} on My Trips tab or click the link below. Link with the trip shared. \n\n iOS App Link: \n $appleAppShorterLink \n\n Android App Link: \n $googleAppShorterLink",
+                              ).then((value) {
+                                Navigator.pop(context);
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// Show Generate Alert Box
+  Future<void> _showGenerateAlertBox({
+    required String iterationId,
+    required String tripId,
+    required BuildContext context,
+  }) async {
+    // show the dialog
+    showDialog(
+      barrierDismissible: false,
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setModelState) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    width: sizes!.width,
+                    height: sizes!.heightRatio * 200,
+                    margin: const EdgeInsets.all(16),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.mainWhite,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        vertical: sizes!.heightRatio * 12,
+                        horizontal: sizes!.widthRatio * 12,
+                      ),
+                      child: Column(
+                        children: [
+                          // Close Icon
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              GestureDetector(
+                                onTap: () => Navigator.pop(context),
+                                child: Container(
+                                  color: Colors.transparent,
+                                  child: SvgPicture.asset(
+                                    "assets/svg/close-pop.svg",
+                                    height: sizes!.heightRatio * 24,
+                                    width: sizes!.widthRatio * 24,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          CommonPadding.sizeBoxWithHeight(height: 10),
+
+                          const GetGenericText(
+                            text:
+                                "Are you sure you want to regenerate this activity?",
+                            fontFamily: Assets.aileron,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.mainBlack100,
+                            lines: 3,
+                            textAlign: TextAlign.center,
+                          ).get16HorizontalPadding(),
+
+                          CommonPadding.sizeBoxWithHeight(height: 20),
+
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.pop(context);
+                                },
+                                child: Container(
+                                  height: sizes!.heightRatio * 52,
+                                  width: sizes!.widthRatio * 145,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.mainPureWhite,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Center(
+                                    child: GetGenericText(
+                                      text: "Cancel",
+                                      fontFamily: Assets.basement,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.mainBlack100,
+                                      lines: 1,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () async {
+                                  setModelState(() {
+                                    isRegeneratingState = true;
+                                  });
+
+                                  Toasts.getWarningToast(
+                                    text:
+                                        "Please wait, iteration regenerating...",
+                                  );
+
+                                  await myTripGeneratedProvider
+                                      .regenerateTripIteration(
+                                    tripId: tripId,
+                                    iterationId: iterationId,
+                                    context: context,
+                                  );
+
+                                  if (myTripGeneratedProvider
+                                      .regenerateIteration) {
+                                    setModelState(() {
+                                      isRegeneratingState = true;
+                                    });
+                                    if (context.mounted) {
+                                      Navigator.pop(context);
+                                    }
+                                  } else {
+                                    setModelState(() {
+                                      isRegeneratingState = true;
+                                    });
+                                    if (context.mounted) {
+                                      Navigator.pop(context);
+                                    }
+                                  }
+                                },
+                                child: Container(
+                                  height: sizes!.heightRatio * 52,
+                                  width: sizes!.widthRatio * 145,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.mainWhite,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: AppColors.mainBlack,
+                                      width: 3,
+                                    ),
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: AppColors.mainBlack100,
+                                        spreadRadius: 0,
+                                        blurRadius: 0,
+                                        offset: Offset(
+                                          -4,
+                                          4,
+                                        ), // changes position of shadow
+                                      ),
+                                    ],
+                                  ),
+                                  child: Center(
+                                    child: isRegeneratingState == false
+                                        ? GradientText(
+                                            "Regenerate",
+                                            style: TextStyle(
+                                              fontSize: sizes!.fontRatio * 18,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                            colors: const [
+                                              AppColors.getStartGradientOne,
+                                              AppColors.getStartGradientTwo,
+                                              AppColors.getStartGradientThree,
+                                            ],
+                                          )
+                                        : const Center(
+                                            child: CircularProgressIndicator(),
+                                          ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _showGoToSettingsAlert({
+    required BuildContext context,
+  }) async {
+    // show the dialog
+    showDialog(
+      barrierDismissible: false,
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    width: sizes!.width,
+                    // height: sizes!.heightRatio * 180,
+                    margin: const EdgeInsets.all(16),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.mainWhite,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        vertical: sizes!.heightRatio * 12,
+                        horizontal: sizes!.widthRatio * 12,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Close Icon
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  _retrieveCalendars(myTripGeneratedProvider
+                                      .getTripInfoResponse.data!.id);
+                                },
+                                child: Container(
+                                  color: Colors.transparent,
+                                  child: SvgPicture.asset(
+                                    "assets/svg/close-pop.svg",
+                                    height: sizes!.heightRatio * 24,
+                                    width: sizes!.widthRatio * 24,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          CommonPadding.sizeBoxWithHeight(height: 20),
+
+                          const GetGenericText(
+                            text: "Go to settings to give calendar access.",
+                            fontFamily: Assets.aileron,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.mainBlack100,
+                            lines: 4,
+                            textAlign: TextAlign.center,
+                          ),
+
+                          CommonPadding.sizeBoxWithHeight(height: 24),
+                          // Gradient Get Start PopUp Button
+
+                          GestureDetector(
+                            onTap: () {
+                              openAppSettings();
+                            },
+                            child: Container(
+                              height: sizes!.heightRatio * 52,
+                              width: sizes!.widthRatio * 200,
+                              decoration: BoxDecoration(
+                                color: AppColors.mainWhite,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: AppColors.mainBlack,
+                                  width: 3,
+                                ),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: AppColors.mainBlack100,
+                                    spreadRadius: 0,
+                                    blurRadius: 0,
+                                    offset: Offset(
+                                      -4,
+                                      4,
+                                    ), // changes position of shadow
+                                  ),
+                                ],
+                              ),
+                              child: Center(
+                                  child: GradientText(
+                                'Go To Settings',
+                                style: TextStyle(
+                                  fontSize: sizes!.fontRatio * 18,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                                colors: const [
+                                  AppColors.getStartGradientOne,
+                                  AppColors.getStartGradientTwo,
+                                  AppColors.getStartGradientThree,
+                                ],
+                              )),
+                            ),
+                          ),
+                          CommonPadding.sizeBoxWithHeight(height: 20),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _retrieveCalendars(tripId) async {
+    //Retrieve user's calendars from mobile device
+    //Request permissions first if they haven't been granted
+    SharedPreferences sharedPred = await SharedPreferences.getInstance();
+    try {
+      _logger.e("myTripGeneratedProvider.getTripInfoResponse.data?.id $tripId");
+      bool? isAdded = sharedPred.getBool("$tripId");
+      _logger.e("isAddedisAddedisAddedisAdded $isAdded");
+      if (isAdded == null || isAdded == false) {
+        _logger.e("if Inside Before $isAddToCalendar");
+        setState(() {
+          isAddToCalendar = false;
+        });
+        _logger.e("if Inside After $isAddToCalendar");
+      } else {
+        _logger.e("Else Inside Before $isAddToCalendar");
+        setState(() {
+          isAddToCalendar = true;
+        });
+        _logger.e("Else Inside After $isAddToCalendar");
+      }
+      var permissionsGranted = await _deviceCalendarPlugin.hasPermissions();
+      _logger.e("permissionGrantedd1 $permissionsGranted");
+      _logger.e("permissionGrantedd2isSuccess ${permissionsGranted.isSuccess}");
+      _logger.e("permissionGrantedd3data ${permissionsGranted.data}");
+      _logger.e("permissionGrantedd4hasErrors ${permissionsGranted.hasErrors}");
+      if (Platform.isIOS) {
+        // var perm = await Permission.calendarFullAccess.isGranted;
+        // _logger.e("permmmmmmmm $perm");
+        // if (!perm) {
+        //   var permiss = await Permission.calendarFullAccess.request();
+        //   _logger.e("permiss $permiss");
+        //   if (permiss == PermissionStatus.permanentlyDenied) {
+        //     return;
+        //     openAppSettings();
+        //   }
+        // }
+      } else {
+        if (permissionsGranted.isSuccess &&
+            (permissionsGranted.data == null ||
+                permissionsGranted.data == false)) {
+          print("ranr----anran");
+          permissionsGranted = await _deviceCalendarPlugin.requestPermissions();
+          print("ranr----anran111111 ${permissionsGranted.data}");
+          if (!permissionsGranted.isSuccess ||
+              permissionsGranted.data == null ||
+              permissionsGranted.data == false) {
+            Toasts.getSuccessToast(
+              text: "Permission not allowed",
+            );
+            return;
+          }
+        }
+      }
+      // late List<Calendar> calendarsResult;
+      // int? isFound;
+      print("ranranran");
+      var calendarsResponse = await _deviceCalendarPlugin.retrieveCalendars();
+      print("ranranran1");
+      _calendars = calendarsResponse.data!.toList();
+      print("ranranran2");
+      _selectedCalendar = calendarsResponse.data
+          ?.firstWhereOrNull((obj) => obj.name == 'Planify');
+      print("ranranran3");
+      setState(() {
+        _calendars = calendarsResponse.data!.toList();
+        _selectedCalendar = calendarsResponse.data
+            ?.firstWhereOrNull((obj) => obj.name == 'Planify');
+      });
+
+      _logger.i("isFound: -> ${_calendars[0].name}");
+      _logger.i("isFound: -> ${_selectedCalendar?.name}");
+
+      if (_selectedCalendar?.name == null) {
+        var result = await _deviceCalendarPlugin.createCalendar(
+          'Planify',
+          calendarColor: AppColors.primaryBlueColor,
+          localAccountName: 'Planify',
+        );
+        _logger.e("resultt222 ${result.errors}");
+        if (result.errors.isNotEmpty) {
+          permissionsGranted = await _deviceCalendarPlugin.requestPermissions();
+          _logger.e("error in permission ${permissionsGranted.errors}");
+          if (!permissionsGranted.isSuccess ||
+              permissionsGranted.data == null ||
+              permissionsGranted.data == false) {
+            Toasts.getSuccessToast(
+              text: "Permission not allowed",
+            );
+            return;
+          }
+          result = await _deviceCalendarPlugin.createCalendar(
+            'Planify',
+            calendarColor: AppColors.primaryBlueColor,
+            localAccountName: 'Planify',
+          );
+        }
+        var calendarsResponse = await _deviceCalendarPlugin.retrieveCalendars();
+        _logger.e("message ${calendarsResponse.data?.length}");
+        _selectedCalendar =
+            calendarsResponse.data?.firstWhere((obj) => obj.name == 'Planify');
+        _logger.i("isFound2: -> ${_selectedCalendar?.name}");
+        _calendars = calendarsResponse.data!.toList();
+        setState(() {
+          _calendars = calendarsResponse.data!.toList();
+          _selectedCalendar = calendarsResponse.data?.firstWhere(
+              (obj) => obj.name == 'Planify',
+              orElse: () => Calendar());
+        });
+      }
+      // _selectedCalendar =
+      //     _calendars.isNotEmpty ? _calendars[isFound!] : Calendar();
+      _logger.e("calendarsResult.data");
+      _logger.e(_selectedCalendar?.name);
+      // setState(() {
+      //   _calendars = calendarsResult?.data;
+      // });
+    } catch (e) {
+      print("e ---> $e");
+    }
+  }
+}
